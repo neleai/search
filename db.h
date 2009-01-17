@@ -13,7 +13,8 @@ typedef struct {
 	#define ATR(x,y) x y , min##y , max##y;
 	#define ATR2(x,y)
 	#include "atrs.h"
-	int firstfile,midfile,lastfile,lastdir;	
+	int firstfile,midfile,//last file in directory
+			lastfile,lastdir;	//subdirs
 	char name[1];
 } dirinfo;
 typedef struct {

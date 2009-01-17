@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "db.h"
-
+#include "compress.h"
 #define readary(fd,ary) size=fdsize(fd); ary=(typeof(ary)) malloc(size);read(fd,ary,size);
 int fdsize (int fd ){	static struct stat st; fstat(fd,&st);return st.st_size;}
 #define writeary(fd,ary) structsize(ary); write(fd,ary,size);
@@ -72,6 +72,7 @@ void writedb(dbase *db,char *path){
 void mergedb(dbase * db){
 	;
 }
+char filebuf[1000];
 void findrec(dbase *basedb,dbase *db, char *file){
 	static struct stat st;
 	chdir(file);	
@@ -87,6 +88,7 @@ void findrec(dbase *basedb,dbase *db, char *file){
 	DIR * dir=opendir(".");
 	struct dirent *e;
 	int first=1;
+	*filebuf=0;
 	while ((e=readdir(dir))){
 		if (strcmp(e->d_name,".")&&strcmp(e->d_name,"..")) {
 			lstat(e->d_name,&st);
@@ -102,6 +104,7 @@ void findrec(dbase *basedb,dbase *db, char *file){
 #include "atrs.h"
 			}
 			strcpy(db->files->name,e->d_name);
+			compress(db->files->name,filebuf);
 			db->files->mime=getmime(db,e->d_name);
 			db->files=nextstruct(db->files);
 		}

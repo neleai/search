@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <fnmatch.h>
 #include <pcre.h>
+#include "compress.h"
 char matchmime[30000];
 
 int statless(struct stat *a,struct stat *b){
@@ -82,18 +83,21 @@ int patternid(char *name)
 return -42;
 }
 int needmime,needstat;
+char filebuf[1000];
 void rquery(dbase *basedb,dbase *db,char *path){
 	int l=strlen(path);
 	path[l]='/';path[l+1]=0;strcat(path,db->dirs->name);
+	db->files=ptrmov(basedb->files,db->dirs->firstfile);
+	if(!matchpattern(pat[patternid("path")],path))goto e;
 	while (db->files!=ptrmov(basedb->files,db->dirs->midfile)){
+		decompress(db->files->name, filebuf);
 		if(needmime && !matchmime[db->files->mime] )goto n;
-		if(!matchpattern(pat[patternid("path")],path))goto n;
-		if(!matchpattern(pat[patternid("name")],db->files->name))goto n;
-		if(needstat && !comparestat(db->files->name))goto n;
+		if(!matchpattern(pat[patternid("name")],filebuf))goto n;
+		if(needstat && !comparestat(filebuf))goto n;
 		output(path,db->files->name);
 n:			db->files=nextstruct(db->files);
 	}
-	dirinfo *enddir=ptrmov(basedb->dirs,db->dirs->lastdir);
+e:;	dirinfo *enddir=ptrmov(basedb->dirs,db->dirs->lastdir);
 	while(db->dirs!=enddir){
 		db->dirs=nextstruct(db->dirs);
 		if (db->dirs==enddir) break;
