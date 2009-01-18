@@ -1,4 +1,4 @@
-CC=gcc -g -Wall -lpcre
+CC=gcc -g3 -Wall -lpcre
 all: updatedb search
 search: db.o db.h atrs.h search.o compress.o
 	$(CC) db.o search.o compress.o -o search

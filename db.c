@@ -123,8 +123,8 @@ void copydir(dbase *old,dbase *ne,char *path,int rec){int i;
 		ne->dirp->filesize=old->dirp->filesize;
 		memcpy(ptrmov(ne->dirs,ne->dirp->firstdir),ptrmov(old->dirs,old->dirp->firstdir),old->dirp->dirsize );
 		ne->dirp->dirsize=old->dirp->dirsize;
-		ne->ldir=ptrmov(ne->ldir,ne->dirp->dirsize);
-		ne->ldir=ptrmov(ne->lfile,ne->dirp->filesize);
+		ne->ldir=ptrmov(ne->dirs,ne->dirp->firstdir+ ne->dirp->dirsize);
+		ne->lfile=ptrmov(ne->files,ne->dirp->firstfile+ ne->dirp->filesize);
 		ne->dirp->mtime=old->dirp->mtime;
 	}else{
 		if (!rec)return;

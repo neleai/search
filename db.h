@@ -5,7 +5,7 @@
 #define ptrdist(a,b) (((char *)a)-((char *)b))
 #define ptrmov(a,b) ((typeof(a)) (((char *)(a))+b))
 #define nextstruct(p) ((typeof(p)) (((char *)(p))+sizeof(*p)+1+strlen(((char *)(p))+sizeof(*p) )))
-#define structsize(p) {typeof(p) _r=p; while (_r->name[0]) _r=nextstruct(_r); size=ptrdist(_r,p)+sizeof(*p)+1; }
+#define structsize(p) {typeof(p) _r=p; while (_r->name[0]) _r=nextstruct(_r); size=ptrdist(_r,p)+3*sizeof(*p)+1; }
 typedef struct {
 	char name[1];
 } mimeinfo;

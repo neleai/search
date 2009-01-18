@@ -141,7 +141,7 @@ void query(dbase *olddb,dbase *newdb,char *bpath,char *tpath){
 	if (strcmp(olddb->dirp->name,newdb->dirp->name)) oldi=odi=olddb->dirs;
 	for(;di!=ldi;di=nextstruct(di)){
 		while(odi!=oldi&&strcmp(odi->name,di->name)==-1 ) odi=nextstruct(odi);
-		olddb->dirp=odi;
+		olddb->dirp=(odi!=oldi)?odi:olddb->dirs;
 		newdb->dirp=di;
 		strcpy(cpath,di->name);	
 		query(olddb,newdb,bpath,tpath);
