@@ -4,9 +4,10 @@
 #include <stdlib.h>
 #include <fnmatch.h>
 #include <pcre.h>
+#include <limits.h>
 #include "compress.h"
 char matchmime[30000];
-
+char *searchpath;
 int statless(struct stat *a,struct stat *b){
 	#define ATR(x,y) if(a->st_##y < b->st_##y)return 1;
 	#define ATR3(x,y) if(a->st_##y < b->st_##y)return 1;
@@ -35,7 +36,7 @@ int ovec[30];char *lastpat;
 char outptr[100];
 char substbuf[1000];
 char *substmatches(char *path, char *name){
-	char *b=substbuf,*op=outptr;int r;
+	char *b=substbuf,*op=outptr;int r;if (*outptr=='#') op++;
 	while (*op){
 		*b=0;
 		switch (*op){
@@ -46,7 +47,7 @@ char *substmatches(char *path, char *name){
 					*b++='%';
 					break;
 					case '*':
-					strcat(b, path);strcat(b,"/");strcat(b,name);
+					strcat(b, path);strcat(b,name);
 					b+=strlen(b);
 					break;
 					default:
@@ -65,7 +66,10 @@ char *substmatches(char *path, char *name){
 	return substbuf;
 }
 void output(char *path,char *name){
-	system(substmatches(path,name));
+	if (*outptr=='#')
+		printf(substmatches(path,name));
+	else
+		system(substmatches(path,name));
 }
 pattern pat[20];
 int matchpattern(pattern pat,char *chr){lastpat=chr;
@@ -83,8 +87,7 @@ int patternid(char *name)
 return -42;
 }
 int needmime,needstat;
-char filebuf[1000];
-void rquery(dbase *basedb,dbase *db,char *path){
+/*void rquery(dbase *basedb,dbase *db,char *path){
 	int l=strlen(path);
 	path[l]='/';path[l+1]=0;strcat(path,db->dirs->name);
 	db->files=ptrmov(basedb->files,db->dirs->firstfile);
@@ -94,7 +97,7 @@ void rquery(dbase *basedb,dbase *db,char *path){
 		if(needmime && !matchmime[db->files->mime] )goto n;
 		if(!matchpattern(pat[patternid("name")],filebuf))goto n;
 		if(needstat && !comparestat(filebuf))goto n;
-		output(path,db->files->name);
+		output(path,filebuf);
 n:			db->files=nextstruct(db->files);
 	}
 e:;	dirinfo *enddir=ptrmov(basedb->dirs,db->dirs->lastdir);
@@ -110,6 +113,39 @@ void query(dbase *db){
 	dbase d2;
 	strncpy((char *)&d2,(char *)db,sizeof(dbase));
 	rquery(&d2,db,path);
+}*/
+char filebuf[10000];
+void scanfiles(dbase *db,char *path){
+	db->filep=ptrmov(db->files,db->dirp->firstfile);
+	*filebuf=0;
+	if(!matchpattern(pat[patternid("path")],path))return;
+	while (db->filep!=ptrmov(db->files,db->dirp->firstfile+db->dirp->filesize)){
+		decompress(db->filep->name, filebuf);
+		if(needmime && !matchmime[db->filep->mime] )goto n;
+		if(!matchpattern(pat[patternid("name")],filebuf))goto n;
+		if(needstat && !comparestat(filebuf))goto n;
+		output(path,filebuf);
+n:	db->filep=nextstruct(db->filep);
+	}
+}
+void query(dbase *olddb,dbase *newdb,char *bpath,char *tpath){
+	char *cpath=bpath+strlen(bpath);int cont=0;
+	if (! strncmp(bpath,tpath,strlen(bpath))) cont=1;
+	if (! strncmp(bpath,tpath,strlen(tpath))) cont=2;
+	copydir(olddb,newdb,bpath,cont);
+	if (cont==2) scanfiles(newdb,bpath); 
+	dirinfo *ldi= ptrmov(newdb->dirs,newdb->dirp->firstdir+ newdb->dirp->dirsize);
+	dirinfo *di = ptrmov(newdb->dirs,newdb->dirp->firstdir);
+	dirinfo *oldi=ptrmov(olddb->dirs,olddb->dirp->firstdir+ olddb->dirp->dirsize);
+	dirinfo *odi =ptrmov(olddb->dirs,olddb->dirp->firstdir);
+	if (strcmp(olddb->dirp->name,newdb->dirp->name)) oldi=odi=olddb->dirs;
+	for(;di!=ldi;di=nextstruct(di)){
+		while(odi!=oldi&&strcmp(odi->name,di->name)==-1 ) odi=nextstruct(odi);
+		olddb->dirp=odi;
+		newdb->dirp=di;
+		strcpy(cpath,di->name);	
+		query(olddb,newdb,bpath,tpath);
+	}
 }
 pattern getpattern(char *p,int *n){
 	pattern pat;pat.re=NULL;pat.wild=NULL;
@@ -135,11 +171,9 @@ pattern getpattern(char *p,int *n){
 char *dates;
 
 int main(int argc,char *argv[]){
-	strcat(outptr, "echo \"%*\"\n");
+	strcat(outptr, "#\"%*\"\n");
 	int i; char *p,s[1000];s[0]=0;int n;
 	for ( i=1;i<argc;i++) {strcat(s,argv[i]);strcat(s," ");}	s[strlen(s)-1]=0;
-	dbase *db;
-	db=readdb("/var/lib/search");
 	p=s;
 	while(*p){
 		char c;
@@ -162,7 +196,13 @@ int main(int argc,char *argv[]){
 		}
 			
 		}
-		
-	query(db);
+	char pathbuf[10000];
+	dbase *db,*newdb=createdb();
+	db=readdb("/var/lib/search");
+	searchpath=realpath(".",NULL);
+	*(newdb->dirs->name)='/';*pathbuf='/';
+	newdb->ldir=nextstruct(newdb->ldir);	
+	query(db,newdb,pathbuf,searchpath);
+	writedb(newdb,"/var/lib/search");
 	return 0;
 }

@@ -2,9 +2,9 @@
 #include <string.h>
 char cbuf[1000];
 void compress(char *str,char *buf){char *s=str,*b=buf;
-	if (*s!=*b)return;
-	int i=0;while (*s && *s++==*b++ )i++;
-	*cbuf=128+i;
+	if (*s!=*b){strcpy(buf,str); return;}
+	int i=0;while (*s && *s==*b ){i++;s++;b++;}
+	*cbuf=127+i;
 	strcpy(cbuf+1,s);
 	strcpy(buf,str);
 	strcpy( str,cbuf);

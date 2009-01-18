@@ -45,7 +45,7 @@ void writefiles(dbase *db){
 }
 short int getmime(dbase *db,char *file){
 	char a[1000];
-	sprintf(a,"file %s",file);
+	sprintf(a,"file \"%s\"",file);
 	FILE *f=popen(a,"r");
 	fscanf(f,"%s",a);fscanf(f," ");
 	fscanf(f,"%[^,]",a);
@@ -63,19 +63,25 @@ dbase *readdb(char *path){
 	dbase *d=malloc(sizeof(dbase));
 	d->path=strdup(path);
 	readmimes(d);readdirs(d);readfiles(d);
+	d->mimep=d->mimes;d->filep=d->files;d->dirp=d->dirs;
 	return d;
 }
+dbase *dbdup(dbase *d){dbase *b=(dbase *)malloc(sizeof(dbase));memcpy(b,d,sizeof(dbase));return b; }
 void writedb(dbase *db,char *path){
 	db->path=strdup(path);
 	writemimes(db);writedirs(db);writefiles(db);
 }
-void mergedb(dbase * db){
-	;
-}
+
 char filebuf[1000];
-void findrec(dbase *basedb,dbase *db, char *file){
+char fsort[1000000];
+char *fils[10000],*dirp[10000];
+
+	static int
+cmpstring(const void *p1, const void *p2)
+{	return strcmp(* (char * const *) p1, * (char * const *) p2);}
+/*void findrec(dbase *basedb,dbase *db, char *file){int i;
 	static struct stat st;
-	chdir(file);	
+	if (chdir(file)	) return;
 	lstat(".",&st);
 #define ATR(x,y) db->dirs->y=st.st_##y;
 #define ATR2(x,y)
@@ -87,49 +93,89 @@ void findrec(dbase *basedb,dbase *db, char *file){
 
 	DIR * dir=opendir(".");
 	struct dirent *e;
-	int first=1;
 	*filebuf=0;
+	char *fp=fsort;int fn=0,dn=0;
 	while ((e=readdir(dir))){
 		if (strcmp(e->d_name,".")&&strcmp(e->d_name,"..")) {
-			lstat(e->d_name,&st);
-			if (first){
-				#define ATR(x,y) db->dirs->min##y = db->dirs->max##y = st.st_##y;	
-#define ATR2(x,y)
-#include "atrs.h"
-				first=0;
-			} else {
-				#define ATR(x,y) db->dirs->min##y = (db->dirs->min##y < st.st_##y) ?db->dirs-> min##y : st.st_##y;db->dirs->max##y = (db->dirs->max##y > st.st_##y) ? db->dirs->max##y : st.st_##y;
-				//#define ATR2(x,y) db->dirs->min##y = db->dirs->min ## y & st.st_##y; db->dirs->max##y = db->dirs->max##y | st.st_##y;
-#define ATR2(x,y)
-#include "atrs.h"
+			if (e->d_type==DT_DIR)dirp[dn++]=fp;
+			strcpy(fp,e->d_name); fils[fn++]=fp;fp+=strlen(fp)+1;
+		}
+	}
+	closedir(dir);
+	qsort(fils,fn,sizeof(char*),cmpstring);
+	for(i=0;i<fn;i++){
+		strcpy(db->filep->name,fils[i]);
+		compress(db->filep->name,filebuf);
+		db->filep->mime=0;
+		db->filep=nextstruct(db->filep);
+	}
+	qsort(dirp,dn,sizeof(char*),cmpstring);
+
+}*/
+void copydir(dbase *old,dbase *ne,char *path,int rec){int i;
+	if (chdir(path))return;
+	static struct stat st;
+	lstat(".",&st);
+	ne->dirp->firstfile=ptrdist( ne->lfile,ne->files);
+	ne->dirp->firstdir=ptrdist( ne->ldir,ne->dirs);
+	if ((!strcmp(old->dirp->name,ne->dirp->name)&&(!rec|| old->dirp->mtime==st.st_mtime))){
+		memcpy(ptrmov(ne->files,ne->dirp->firstfile),ptrmov(old->files,old->dirp->firstfile),old->dirp->filesize );
+		ne->dirp->filesize=old->dirp->filesize;
+		memcpy(ptrmov(ne->dirs,ne->dirp->firstdir),ptrmov(old->dirs,old->dirp->firstdir),old->dirp->dirsize );
+		ne->dirp->dirsize=old->dirp->dirsize;
+		ne->ldir=ptrmov(ne->ldir,ne->dirp->dirsize);
+		ne->ldir=ptrmov(ne->lfile,ne->dirp->filesize);
+		ne->dirp->mtime=old->dirp->mtime;
+	}else{
+		if (!rec)return;
+		ne->dirp->mtime=st.st_mtime;
+		fileinfo *lfp=ne->lfile;
+		DIR * dir=opendir(".");
+		struct dirent *e;
+		*filebuf=0;
+		char *fp=fsort;int fn=0,dn=0;
+		while ((e=readdir(dir))){
+			if (strcmp(e->d_name,".")&&strcmp(e->d_name,"..")) {
+				if (e->d_type==DT_DIR)dirp[dn++]=fp;
+				strcpy(fp,e->d_name); fils[fn++]=fp;fp+=strlen(fp)+1;
 			}
-			strcpy(db->files->name,e->d_name);
-			compress(db->files->name,filebuf);
-			db->files->mime=getmime(db,e->d_name);
-			db->files=nextstruct(db->files);
 		}
-	}
-	closedir(dir);
-	ths->midfile=ptrdist(db->files,basedb->files);
-	dir=opendir(".");
-	while ((e=readdir(dir))){
-		if (strcmp(e->d_name,".")&&strcmp(e->d_name,"..")) {
-			if (e->d_type==DT_DIR)
-				findrec(basedb,db,e->d_name);
+		closedir(dir);
+		qsort(fils,fn,sizeof(char*),cmpstring);
+		for(i=0;i<fn;i++){
+			strcpy(lfp->name,fils[i]);
+			compress(lfp->name,filebuf);
+			lfp->mime=0;
+			lfp=nextstruct(lfp);
 		}
+		ne->dirp->filesize=ptrdist(lfp,ne->lfile);
+		ne->lfile=lfp;
+		qsort(dirp,dn,sizeof(char*),cmpstring);
+		dirinfo *di=ne->ldir;
+		for(i=0;i<dn;i++){
+			di->mtime=di->firstfile=di->filesize=di->firstdir=di->dirsize=0;
+			strcpy(di->name,dirp[i]);strcat(di->name,"/");
+			di=nextstruct(di);
+		}
+		ne->dirp->dirsize=ptrdist(di,ne->ldir);
+		ne->ldir=di;
 	}
-	closedir(dir);
-	ths->lastfile=ptrdist(db->files, basedb->files);
-	ths->lastdir =ptrdist(db->dirs, basedb->dirs);
-	chdir("..");
+
+}
+
+dbase *createdb(){
+	dbase *d=(dbase *)malloc(sizeof(dbase));
+	d->mimes=(mimeinfo *)calloc(1000000,1);
+	d->files=(fileinfo *)calloc(10000000,1);
+	d->dirs=(dirinfo *)calloc(1000000,1);
+	d->ldir=d->dirp=d->dirs;
+	d->mimep=d->mimes;
+	d->lfile=d->filep=d->files;
+	return d;
 }
 dbase *makedb(char *path){
-		dbase *d=(dbase *)malloc(sizeof(dbase)),*d2=(dbase *)malloc(sizeof(dbase));
-		d->mimes=(mimeinfo *)malloc(100000);
-		d->files=(fileinfo *)malloc(100000);
-		d->dirs=(dirinfo *)malloc(100000);
-		memcpy((char *)d2,(char *)d,sizeof(dbase));
-		findrec(d2,d,path);
+		dbase *d=createdb() ,*d2=(dbase *)malloc(sizeof(dbase));
+//		findrec(d2,d,path);
 		return d2;
 }
 

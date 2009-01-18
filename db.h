@@ -10,11 +10,11 @@ typedef struct {
 	char name[1];
 } mimeinfo;
 typedef struct {
-	#define ATR(x,y) x y , min##y , max##y;
+  /*#define ATR(x,y) x y , min##y , max##y;
 	#define ATR2(x,y)
-	#include "atrs.h"
-	int firstfile,midfile,//last file in directory
-			lastfile,lastdir;	//subdirs
+	#include "atrs.h"*/
+	int mtime;
+	int firstfile,filesize,firstdir,dirsize;
 	char name[1];
 } dirinfo;
 typedef struct {
@@ -23,11 +23,13 @@ typedef struct {
 } fileinfo;
 typedef struct {
 	char *path;
-	mimeinfo *mimes;
-	dirinfo *dirs;
-	fileinfo *files;
+	mimeinfo *mimes,*mimep;
+	dirinfo *dirs,*dirp,*ldir;
+	fileinfo *files,*filep,*lfile;
 } dbase;
 dbase *makedb(char *path);
 dbase *readdb(char *path);
-void mergedb(dbase * db);
+dbase * dbdup(dbase *d);
+dbase *createdb();
+void copydir(dbase *old,dbase *ne,char *path,int rec);
 void writedb(dbase * db,char *path);
