@@ -94,7 +94,7 @@ int needmime,needstat;
 	if(!matchpattern(pat[patternid("path")],path))goto e;
 	while (db->files!=ptrmov(basedb->files,db->dirs->midfile)){
 		decompress(db->files->name, filebuf);
-		if(needmime && !matchmime[db->files->mime] )goto n;
+//		if(needmime && !matchmime[db->files->mime] )goto n;
 		if(!matchpattern(pat[patternid("name")],filebuf))goto n;
 		if(needstat && !comparestat(filebuf))goto n;
 		output(path,filebuf);
@@ -121,7 +121,7 @@ void scanfiles(dbase *db,char *path){
 	if(!matchpattern(pat[patternid("path")],path))return;
 	while (db->filep!=ptrmov(db->files,db->dirp->firstfile+db->dirp->filesize)){
 		decompress(db->filep->name, filebuf);
-		if(needmime && !matchmime[db->filep->mime] )goto n;
+	//	if(needmime && !matchmime[db->filep->mime] )goto n;
 		if(!matchpattern(pat[patternid("name")],filebuf))goto n;
 		if(needstat && !comparestat(filebuf))goto n;
 		output(path,filebuf);
@@ -198,11 +198,11 @@ int main(int argc,char *argv[]){
 		}
 	char pathbuf[10000];
 	dbase *db,*newdb=createdb();
-	db=readdb("/var/lib/search");
+	db=readdb("~");
 	searchpath=realpath(".",NULL);
 	*(newdb->dirs->name)='/';*pathbuf='/';
 	newdb->ldir=nextstruct(newdb->ldir);	
 	query(db,newdb,pathbuf,searchpath);
-	writedb(newdb,"/var/lib/search");
+	writedb(newdb,"~");
 	return 0;
 }
