@@ -18,7 +18,7 @@ typedef struct {
 	char name[1];
 } dirinfo;
 typedef struct {
-//	short int mime;
+	short int mime;
 	char name[1]; 
 } fileinfo;
 typedef struct {

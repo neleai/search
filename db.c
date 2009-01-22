@@ -145,7 +145,7 @@ void copydir(dbase *old,dbase *ne,char *path,int rec){int i;
 		for(i=0;i<fn;i++){
 			strcpy(lfp->name,fils[i]);
 			compress(lfp->name,filebuf);
-			lfp->mime=0;
+		//	lfp->mime=0;
 			lfp=nextstruct(lfp);
 		}
 		ne->dirp->filesize=ptrdist(lfp,ne->lfile);
